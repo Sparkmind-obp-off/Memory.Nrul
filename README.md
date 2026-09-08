@@ -1,85 +1,69 @@
 # Memory.Nrul
 
-**Memory.Nrul** adalah general **AI conversation continuity layer**.
+General AI Memory & Context Continuity infrastructure. Memory—not the AI provider—is the core product.
 
-Tujuannya sederhana: ketika user berpindah chat, sesi, aplikasi, atau model AI, konteks penting tidak harus dijelaskan ulang dari nol.
+## Completed
 
-Memory.Nrul bukan sekadar arsip topik dan bukan memory untuk satu proyek saja. Ia menjaga hal-hal yang membuat percakapan tetap nyambung:
+- Structured D1 memory model with extensible domains, types, links, lifecycle, validity, and confidence
+- Authenticated memory CRUD with archive-on-delete
+- Ranked retrieval using query/domain/recency/confidence/validity/link signals
+- Deterministic context packages: state, memories, decisions, constraints, pending, next actions, history, checkpoint
+- Session checkpoints/handoffs
+- Server-side PUBLIC / PRIVATE / RESTRICTED enforcement
+- Groq provider behind a replaceable `AIProvider` interface; OpenAI/Gemini extension points
+- Validated export/import, responsive dashboard, AI flow indicators
+- Unit/integration tests, live deployment smoke test, GitHub Actions
 
-- context percakapan
-- shared understanding
-- intent dan tujuan
-- situation yang relevan
-- keputusan dan alasan
-- history yang masih relevan
-- current state
-- pekerjaan yang sudah dilakukan
-- pending items
-- next actions
-- constraints
+## URLs and API
 
-## Cara Kerja
+Production URL is recorded here after Cloudflare deployment. Main routes:
 
-```text
-CONVERSATION
-     ↓
-EXTRACT RELEVANT CONTEXT
-     ↓
-CLASSIFY PRIVACY
-     ↓
-PUBLIC MEMORY + PRIVATE MEMORY
-     ↓
-AI SESSION
-     ↓
-READ → VERIFY → CONTINUE
+- `/` dashboard
+- `/api/health`
+- `/api/auth/login|logout|status`
+- `/api/memories` and `/api/memories/:id`
+- `/api/retrieve?query=&domain=&limit=`
+- `/api/context` and `/api/context/package`
+- `/api/checkpoints`, `/api/checkpoints/latest`, `/api/checkpoints/:id`
+- `/api/ai/status` and `/api/ai/chat`
+- `/api/export` and `/api/import`
+
+See `docs/API.md` for authorization and payload details.
+
+## Privacy guarantee
+
+PUBLIC is eligible for external providers. PRIVATE requires an authenticated request plus explicit `includePrivate: true`. RESTRICTED is always removed server-side before external provider calls. `tests/ai-flow.test.ts` verifies `PUBLIC_CONTEXT_SENTINEL` is sent and `RESTRICTED_SECRET_SENTINEL` is absent.
+
+## Local development
+
+```bash
+npm ci
+npm run db:migrate:local
+# Put local-only keys in .dev.vars (ignored by git)
+npm run dev
+npm run typecheck
+npm test
 ```
 
-### Public Memory
+Required production secrets: `MEMORY_ADMIN_KEY`, `GROQ_API_KEY`; optional `GROQ_MODEL` defaults to `llama-3.3-70b-versatile`.
 
-Repository ini dapat menyimpan struktur memory, prinsip continuity, konteks yang aman dipublikasikan, keputusan non-sensitive, dan aturan pemrosesan memory.
+## Data architecture
 
-### Private Memory
+Cloudflare D1 tables: `memories`, `memory_links`, `checkpoints`. Production never relies on process memory. The in-memory repository path exists only for deterministic tests and reports itself through `/api/health`.
 
-Context yang sensitif atau pribadi tetap dapat dipertahankan, tetapi tidak dipublikasikan mentah ke GitHub. Private context hanya digunakan oleh AI ketika storage/platform menyediakan akses yang sah atau user memberikannya secara eksplisit.
+## Deployment
 
-**Privacy bukan berarti context dibuang. Privacy berarti context disimpan melalui jalur yang tepat.**
+Target: Cloudflare Pages Functions (Hono) + D1, BYOK. Create `memory-nrul-db`, replace `<REAL_DATABASE_ID>` in `wrangler.jsonc`, apply remote migrations, set Pages secrets, then deploy `public`. Exact commands are in `docs/DEPLOYMENT.md`.
 
-## Dokumen Utama
+## Continuation guide
 
-- `docs/CONVERSATION_CONTINUITY.md` — prinsip continuity lintas chat/sesi/model.
-- `docs/CONVERSATION_CONTEXT.md` — definisi dan cara merekonstruksi context percakapan.
-- `docs/MEMORY_SCHEMA.md` — struktur context yang perlu dipertahankan.
-- `docs/MEMORY_UPDATE_PROTOCOL.md` — kapan dan bagaimana memory diperbarui.
-- `docs/PRIVATE_CONTEXT_BOUNDARY.md` — batas public vs private context.
-- `docs/PROJECT_CONTEXT.md` — index konteks proyek yang relevan.
-- `docs/DECISIONS.md` — keputusan dan alasan agar tidak mengulang hal yang sudah diputuskan.
-- `docs/SESSION_HANDOFF.md` — checkpoint untuk melanjutkan sesi berikutnya.
+Start with `docs/ARCHITECTURE.md`, `MEMORY_SCHEMA.md`, `CONTEXT_RECONSTRUCTION.md`, `MEMORY_LIFECYCLE.md`, `PRIVACY_BOUNDARY.md`, `AI_PROVIDER.md`, and `API.md`. Preserve the invariant: **no RESTRICTED memory may cross an external provider boundary**.
 
-## Source of Truth
+## Not yet implemented / next steps
 
-Memory.Nrul adalah source of truth untuk **continuity, context, decisions, dan handoff**.
+- Full-text/vector retrieval and multi-tenant identities
+- UI for memory-link graph editing
+- Operational audit events and rate limiting
+- OpenAI/Gemini production adapters
 
-Repository proyek masing-masing tetap menjadi source of truth untuk **source code dan technical state**.
-
-Jika memory berbeda dengan keadaan aktual, verifikasi keadaan aktual terlebih dahulu.
-
-## Privacy & Security
-
-Jangan menyimpan di repository publik:
-
-- raw private conversation
-- detail relationship atau kehidupan pribadi yang sensitif
-- password, token, API key, credential, atau secret
-- data kesehatan, finansial, hukum, atau data sensitif lainnya
-
-Jika context sensitif dibutuhkan untuk continuity, simpan di private storage yang sesuai.
-
-## Operating Loop
-
-`READ MEMORY → VERIFY CURRENT STATE → RECONSTRUCT CONTEXT → CONTINUE → EXECUTE → CHECKPOINT`
-
-## Core Principle
-
-> **Yang disimpan bukan semua kata. Yang disimpan adalah context yang membuat AI tetap memahami apa yang sedang terjadi.**
-
-Memory.Nrul tidak membuat seluruh riwayat ChatGPT otomatis tersedia bagi model lain. Akses tetap bergantung pada memory/storage yang benar-benar tersedia dan permission yang diberikan.
+Deployment status: ready for D1 provisioning and Cloudflare BYOK deployment.

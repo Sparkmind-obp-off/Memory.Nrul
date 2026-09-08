@@ -39,7 +39,7 @@ describe('Memory → Context → Groq', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({
-        title: 'Restricted secret', domain: 'Private',
+        title: 'Restricted secret', domain: 'System',
         summary: 'Never send this to the provider.',
         content: 'RESTRICTED_SECRET_SENTINEL', privacy: 'RESTRICTED', memoryType: 'fact',
       }),

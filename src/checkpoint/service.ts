@@ -1,0 +1,3 @@
+import type { Checkpoint } from '../types'
+const list=(v:unknown)=>Array.isArray(v)?v.map(String).map(x=>x.trim()).filter(Boolean).slice(0,100):[]
+export function buildCheckpoint(body:any):Checkpoint|null{const summary=typeof body?.summary==='string'?body.summary.trim().slice(0,4000):'';if(!summary)return null;return{id:`cp-${crypto.randomUUID()}`,sessionId:typeof body.sessionId==='string'?body.sessionId.slice(0,200):undefined,summary,currentState:typeof body.currentState==='string'?body.currentState.slice(0,10000):undefined,completed:list(body.completed),pending:list(body.pending),nextActions:list(body.nextActions),decisions:list(body.decisions),constraints:list(body.constraints),createdAt:new Date().toISOString()}}

@@ -1,4 +1,13 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "memory-nrul",
   "compatibility_date": "2026-09-01",
-  "pages_build_output_dir": "public"
+  "pages_build_output_dir": "public",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "memory-nrul-db",
+      "database_id": "acae1559-cc73-4815-a0cc-32483f8cb24d"
+    }
+  ]
 }

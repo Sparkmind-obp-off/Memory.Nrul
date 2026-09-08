@@ -4,18 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler pages dev public --compatibility-date=2026-09-01",
+    "dev": "wrangler pages dev public --compatibility-date=2026-09-01 --d1=memory-nrul-db --local --ip 0.0.0.0 --port 3000",
     "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ai": "vitest run tests/ai-flow.test.ts",
     "test:ai:live": "node tests/ai-live-smoke.mjs",
-    "deploy": "wrangler pages deploy public"
+    "deploy": "npm run typecheck && wrangler pages deploy public",
+    "db:migrate:local": "wrangler d1 migrations apply memory-nrul-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply memory-nrul-db --remote"
   },
   "dependencies": {
     "hono": "^4.9.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260901.0",
+    "@cloudflare/workers-types": "^5.20260908.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
     "wrangler": "^4.34.0"
