@@ -1,35 +1,31 @@
 const app = document.querySelector('#app')
 const title = document.querySelector('#title')
 const subtitle = document.querySelector('#subtitle')
-
-const esc = (s) => String(s).replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))
-
-async function load(path) { const r = await fetch(path); return r.json() }
-
+const esc = (s) => String(s ?? '').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))
+async function api(path, options={}) { const r=await fetch(path,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options}); const data=await r.json().catch(()=>({})); if(!r.ok) throw new Error(data.error||`HTTP ${r.status}`); return data }
+function notify(msg){ const n=document.querySelector('#notice'); if(n){n.textContent=msg;n.hidden=false;setTimeout(()=>n.hidden=true,3000)} }
 async function render(view='overview') {
-  document.querySelectorAll('.nav').forEach(b => b.classList.toggle('active', b.dataset.view === view))
-  if (view === 'overview') {
-    title.textContent = 'Keep the conversation alive.'
-    subtitle.textContent = 'Context yang relevan dibawa ke sesi berikutnya tanpa membuang privacy.'
-    const c = await load('/api/context')
-    app.innerHTML = `<div class="grid"><article class="hero"><p class="eyebrow">CURRENT CONTEXT</p><h2>${esc(c.currentContext)}</h2><p>${esc(c.sharedUnderstanding)}</p><div class="flow"><span>Conversation</span><b>→</b><span>Extract</span><b>→</b><span>Privacy</span><b>→</b><span>Memory</span><b>→</b><span>AI</span></div></article><article class="card"><h3>Current state</h3><strong>${esc(c.currentState)}</strong><p class="muted">${c.domains.length} memory domains · ${c.privacy.length} privacy classes</p></article></div><div class="grid"><article class="card"><h3>Pending</h3><ul>${c.pending.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></article><article class="card"><h3>Next</h3><ul>${c.next.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></article></div>`
-  } else if (view === 'memories') {
-    title.textContent = 'Memory records'
-    subtitle.textContent = 'Satu tempat untuk context, keputusan, state, dan handoff.'
-    const data = await load('/api/memories')
-    app.innerHTML = `<div class="toolbar"><input id="q" placeholder="Cari memory…" /><select id="domain"><option value="all">Semua domain</option><option>Conversation</option><option>Project</option><option>Privacy</option></select><button id="search">Search</button></div><div id="list" class="cards">${data.memories.map(card).join('')}</div>`
-    document.querySelector('#search').onclick = async () => { const q=encodeURIComponent(document.querySelector('#q').value); const d=encodeURIComponent(document.querySelector('#domain').value); const x=await load(`/api/memories?q=${q}&domain=${d}`); document.querySelector('#list').innerHTML=x.memories.map(card).join('') }
-  } else if (view === 'context') {
-    title.textContent = 'Context reconstruction'
-    subtitle.textContent = 'AI membaca memory, memeriksa akses, lalu menyusun konteks yang bisa dilanjutkan.'
-    app.innerHTML = `<article class="card"><div class="pipeline"><div>1. READ MEMORY</div><div>2. ACCESS CHECK</div><div>3. VERIFY STATE</div><div>4. RECONSTRUCT</div><div>5. CONTINUE</div></div><h3>Context package</h3><pre id="ctx">Loading…</pre></article>`
-    const c=await load('/api/context'); document.querySelector('#ctx').textContent=JSON.stringify(c,null,2)
+  document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===view))
+  if(view==='overview'){
+    title.textContent='Keep the conversation alive.'; subtitle.textContent='Context relevan dibawa ke sesi berikutnya tanpa membuang privacy.'
+    const c=await api('/api/context')
+    app.innerHTML=`<div id="notice" class="notice" hidden></div><div class="grid"><article class="hero"><p class="eyebrow">CURRENT CONTEXT</p><h2>${esc(c.currentContext)}</h2><p>${esc(c.sharedUnderstanding)}</p><div class="flow"><span>Conversation</span><b>→</b><span>Extract</span><b>→</b><span>Privacy</span><b>→</b><span>Memory</span><b>→</b><span>AI</span></div></article><article class="card"><h3>System state</h3><strong>${esc(c.currentState)}</strong><p class="muted">${c.retrieved.length} visible memories · D1 when bound</p></article></div><div class="grid"><article class="card"><h3>Pending</h3><ul>${c.pending.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></article><article class="card"><h3>Next</h3><ul>${c.next.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></article></div>`
+  } else if(view==='memories'){
+    title.textContent='Memory records'; subtitle.textContent='CRUD langsung: create, read, update, archive. PRIVATE/RESTRICTED butuh authorization.'
+    app.innerHTML=`<div id="notice" class="notice" hidden></div><div class="toolbar"><input id="q" placeholder="Cari memory…"/><select id="domain"><option value="all">Semua domain</option><option>Conversation</option><option>Personal</option><option>Relationship</option><option>Project</option><option>Decision</option><option>Situation</option><option>History</option><option>Preferences</option><option>Tasks</option><option>Session Handoff</option><option>Privacy</option></select><button id="search">Search</button><button id="new">+ Memory</button></div><div id="editor"></div><div id="list" class="cards"></div>`
+    const loadList=async()=>{const q=encodeURIComponent(document.querySelector('#q').value),d=encodeURIComponent(document.querySelector('#domain').value);const x=await api(`/api/memories?q=${q}&domain=${d}`);document.querySelector('#list').innerHTML=x.memories.map(card).join('')||'<div class="empty">Belum ada memory yang terlihat.</div>';document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit,x.memories.find(m=>m.id===b.dataset.edit)));document.querySelectorAll('[data-archive]').forEach(b=>b.onclick=async()=>{try{await api(`/api/memories/${b.dataset.archive}`,{method:'DELETE'});notify('Memory di-archive.');loadList()}catch(e){notify(e.message)}})}
+    document.querySelector('#search').onclick=loadList; document.querySelector('#new').onclick=()=>edit(null); await loadList()
+    function edit(id,m={}){document.querySelector('#editor').innerHTML=`<form id="memoryForm" class="card editor"><div class="editor-head"><h3>${id?'Edit memory':'New memory'}</h3><button type="button" id="cancel">Cancel</button></div><div class="form-grid"><input name="title" required placeholder="Title" value="${esc(m.title)}"/><input name="domain" required placeholder="Domain" value="${esc(m.domain||'Conversation')}"/><textarea name="summary" required placeholder="Summary">${esc(m.summary)}</textarea><textarea name="content" placeholder="Full context / content">${esc(m.content)}</textarea><select name="privacy"><option ${m.privacy==='PUBLIC'?'selected':''}>PUBLIC</option><option ${m.privacy==='PRIVATE'?'selected':''}>PRIVATE</option><option ${m.privacy==='RESTRICTED'?'selected':''}>RESTRICTED</option></select><input name="confidence" type="number" min="0" max="1" step="0.01" value="${m.confidence ?? 1}"/><input name="source" placeholder="Source (optional)" value="${esc(m.source)}"/></div><button class="primary" type="submit">${id?'Save changes':'Create memory'}</button></form>`;document.querySelector('#cancel').onclick=()=>document.querySelector('#editor').innerHTML='';document.querySelector('#memoryForm').onsubmit=async(e)=>{e.preventDefault();const f=new FormData(e.target),body=Object.fromEntries(f.entries());body.confidence=Number(body.confidence);try{await api(id?`/api/memories/${id}`:'/api/memories',{method:id?'PUT':'POST',body:JSON.stringify(body)});notify('Memory tersimpan.');document.querySelector('#editor').innerHTML='';loadList()}catch(err){notify(err.message)}}}
+  } else if(view==='context'){
+    title.textContent='Context reconstruction'; subtitle.textContent='Retrieval → privacy filter → context package yang siap diberikan ke AI.'
+    app.innerHTML=`<article class="card"><div class="toolbar"><input id="ctxq" placeholder="Query context, mis. project / keputusan / pending"/><button id="build">Build package</button><button id="export">Export JSON</button></div><div class="pipeline"><div>1. READ MEMORY</div><div>2. ACCESS CHECK</div><div>3. RETRIEVE</div><div>4. RECONSTRUCT</div><div>5. CONTINUE</div></div><h3>AI context package</h3><pre id="ctx">Klik Build package.</pre></article>`
+    document.querySelector('#build').onclick=async()=>{try{const q=encodeURIComponent(document.querySelector('#ctxq').value);const p=await api('/api/context/package',{method:'POST',body:JSON.stringify({query:decodeURIComponent(q)})});document.querySelector('#ctx').textContent=JSON.stringify(p,null,2)}catch(e){document.querySelector('#ctx').textContent=e.message}}
+    document.querySelector('#export').onclick=async()=>{try{const x=await api('/api/export');const blob=new Blob([JSON.stringify(x,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`memory-nrul-export-${new Date().toISOString().slice(0,10)}.json`;a.click()}catch(e){notify(e.message)}}
   } else {
-    title.textContent = 'System architecture'
-    subtitle.textContent = 'Full-stack foundation: UI → API → memory → privacy → retrieval → AI context.'
-    app.innerHTML = `<article class="card"><div class="architecture"><span>USER / AI</span><i>↓</i><span>CONTEXT EXTRACTION</span><i>↓</i><span>PRIVACY ROUTER</span><div class="split"><span>PUBLIC MEMORY</span><span>PRIVATE MEMORY</span></div><i>↓</i><span>AUTHORIZED CONTEXT MERGER</span><i>↓</i><span>RECONSTRUCTION + VERIFY</span><i>↓</i><span>CONTINUE / EXECUTE / CHECKPOINT</span></div></article>`
+    title.textContent='System architecture'; subtitle.textContent='Runtime architecture: UI → API → persistence → privacy → retrieval → AI context.'
+    app.innerHTML=`<article class="card"><div class="architecture"><span>USER / AI</span><i>↓</i><span>CONTEXT EXTRACTION</span><i>↓</i><span>PRIVACY ROUTER</span><div class="split"><span>PUBLIC MEMORY</span><span>PRIVATE / RESTRICTED</span></div><i>↓</i><span>AUTHORIZED CONTEXT MERGER</span><i>↓</i><span>RETRIEVAL + RECONSTRUCTION</span><i>↓</i><span>AI CONTEXT PACKAGE</span><i>↓</i><span>CONTINUE / EXECUTE / CHECKPOINT</span></div></article>`
   }
 }
-function card(m){return `<article class="memory"><div><span class="tag">${esc(m.domain)}</span><span class="privacy ${m.privacy.toLowerCase()}">${esc(m.privacy)}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.summary)}</p><small>${esc(m.updatedAt)}</small></article>`}
+function card(m){return `<article class="memory"><div><span class="tag">${esc(m.domain)}</span><span class="privacy ${m.privacy.toLowerCase()}">${esc(m.privacy)}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.summary)}</p><small>${esc(m.updatedAt)}</small><div class="actions"><button data-edit="${esc(m.id)}">Edit</button><button data-archive="${esc(m.id)}">Archive</button></div></article>`}
 document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>render(b.dataset.view))
-render()
+render().catch(e=>{app.innerHTML=`<article class="card"><h3>Runtime error</h3><p>${esc(e.message)}</p></article>`})
