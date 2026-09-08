@@ -22,3 +22,5 @@ jobs:
         run: npm run build
       - name: AI flow test
         run: npm run test:ai
+      - name: Voice flow test
+        run: npm run test:voice
