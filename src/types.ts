@@ -26,4 +26,5 @@ export type ContextPackage = {
 export type Bindings = {
   DB?: D1Database; ASSETS?: Fetcher; MEMORY_ADMIN_KEY?: string; MEMORY_SESSION_SECRET?: string
   GROQ_API_KEY?: string; GROQ_MODEL?: string; ENVIRONMENT?: string
+  VOICE_REALTIME_ENABLED?: string; VOICE_REALTIME_PROVIDER?: string; VOICE_REALTIME_SESSION_TTL?: string
 }
