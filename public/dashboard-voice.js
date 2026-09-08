@@ -1,0 +1,2 @@
+const nav=document.querySelector('nav'),app=document.querySelector('#app'),title=document.querySelector('#pageTitle'),subtitle=document.querySelector('#pageSubtitle')
+if(nav&&app){const button=Array.from(nav.querySelectorAll('.nav')).find(x=>x.dataset.view==='voice');button?.addEventListener('click',async()=>{nav.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x===button));title.textContent='Voice AI';subtitle.textContent='Speak on your phone. Memory context stays server-side.';app.innerHTML='<div id="voice-ai"></div>';await import('/voice-chat.js')})}
