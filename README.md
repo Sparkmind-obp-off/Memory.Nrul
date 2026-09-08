@@ -16,7 +16,7 @@ General AI Memory & Context Continuity infrastructure. Memory—not the AI provi
 
 ## URLs and API
 
-Production URL is recorded here after Cloudflare deployment. Main routes:
+Production: **https://memory-nrul.pages.dev** · GitHub: **https://github.com/Sparkmind-obp-off/Memory.Nrul**. Main routes:
 
 - `/` dashboard
 - `/api/health`
@@ -66,4 +66,4 @@ Start with `docs/ARCHITECTURE.md`, `MEMORY_SCHEMA.md`, `CONTEXT_RECONSTRUCTION.m
 - Operational audit events and rate limiting
 - OpenAI/Gemini production adapters
 
-Deployment status: ready for D1 provisioning and Cloudflare BYOK deployment.
+Deployment status: **active** on Cloudflare Pages BYOK with production D1. Groq activation is pending only the `GROQ_API_KEY` deployment secret.
