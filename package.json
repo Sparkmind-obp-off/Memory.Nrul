@@ -1,0 +1,19 @@
+{
+  "name": "memory-nrul",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public --compatibility-date=2026-09-01",
+    "build": "tsc --noEmit",
+    "deploy": "wrangler pages deploy public"
+  },
+  "dependencies": {
+    "hono": "^4.9.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260901.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.34.0"
+  }
+}
