@@ -8,6 +8,7 @@
     "build": "tsc --noEmit",
     "test": "vitest run",
     "test:ai": "vitest run tests/ai-flow.test.ts",
+    "test:ai:live": "node tests/ai-live-smoke.mjs",
     "deploy": "wrangler pages deploy public"
   },
   "dependencies": {
