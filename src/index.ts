@@ -9,6 +9,7 @@ import { buildContextPackage, formatSystemContext } from './context/package'
 import { buildCheckpoint } from './checkpoint/service'
 import { configuredSecret, isAuthenticated, requireAuth, sessionCookie } from './auth/auth'
 import { createAIProvider } from './ai'
+import { createRealtimeVoiceSession } from './voice/realtime'
 
 const app=new Hono<{Bindings:Bindings}>()
 app.use('/api/*',cors({origin:origin=>origin,allowHeaders:['Content-Type','Authorization'],allowMethods:['GET','POST','PUT','DELETE','OPTIONS'],credentials:true}))
@@ -16,7 +17,7 @@ const json=async(c:any)=>await c.req.json().catch(()=>null)
 const bool=(v:unknown)=>v===true||v==='true'||v==='1'
 const publicShape=(m:MemoryRecord)=>({...m,privacy:m.privacyClass})
 
-app.get('/api/health',c=>c.json({ok:true,version:'1.1.0',persistence:c.env.DB?'d1':'memory-fallback',ai:createAIProvider(c.env)?.name||'not-configured',structuredMemory:true,checkpoints:true,voice:true}))
+app.get('/api/health',c=>c.json({ok:true,version:'1.1.0',persistence:c.env.DB?'d1':'memory-fallback',ai:createAIProvider(c.env)?.name||'not-configured',structuredMemory:true,checkpoints:true,voice:true,realtimeVoice:c.env.VOICE_REALTIME_ENABLED==='true'}))
 app.post('/api/auth/login',async c=>{const b=await json(c),secret=configuredSecret(c.env);if(!secret||b?.key!==secret)return c.json({error:'Invalid credentials'},401);c.header('Set-Cookie',sessionCookie(secret));return c.json({ok:true,authenticated:true})})
 app.post('/api/auth/logout',c=>{c.header('Set-Cookie','memory_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return c.json({ok:true})})
 app.get('/api/auth/status',c=>c.json({authenticated:isAuthenticated(c)}))
@@ -37,15 +38,17 @@ app.get('/api/checkpoints/latest',async c=>{const items=await new MemoryReposito
 app.post('/api/checkpoints',async c=>{const denied=requireAuth(c);if(denied)return denied;const cp=buildCheckpoint(await json(c));if(!cp)return c.json({error:'Invalid checkpoint payload'},400);await new MemoryRepository(c.env).saveCheckpoint(cp);return c.json(cp,201)})
 app.delete('/api/checkpoints/:id',async c=>{const denied=requireAuth(c);if(denied)return denied;const ok=await new MemoryRepository(c.env).deleteCheckpoint(c.req.param('id'));return ok?c.json({ok:true}):c.json({error:'Checkpoint not found'},404)})
 
-app.get('/api/export',async c=>{const denied=requireAuth(c);if(denied)return denied;const repo=new MemoryRepository(c.env);return c.json({schema:'memory.nrul.export',version:'1.0',exportedAt:new Date().toISOString(),memories:(await repo.list(true)).map(publicShape),checkpoints:await repo.listCheckpoints()})})
+app.get('/api/export',async c=>{const denied=requireAuth(c);if(denied)return denied;const repo=new MemoryRepository(c.env);return c.json({schema:'memory.nrul.export',version:'1.0',exportedAt:new Date().toISOString(),memories:(await repo.list(true)).map(publicShape),checkpoints:await repo.listCheckpoints()})
+})
 app.post('/api/import',async c=>{const denied=requireAuth(c);if(denied)return denied;const b=await json(c);if(b?.schema!=='memory.nrul.export'||!Array.isArray(b.memories))return c.json({error:'Invalid import schema'},400);const repo=new MemoryRepository(c.env);let imported=0,rejected=0;for(const raw of b.memories.slice(0,1000)){const m=buildMemory(raw);if(!m){rejected++;continue}await repo.save(m);imported++}return c.json({ok:true,imported,rejected})})
 
 app.get('/api/ai/status',c=>{const p=createAIProvider(c.env);return c.json({configured:!!p,provider:p?.name||'groq',model:p?.model||c.env.GROQ_MODEL||'llama-3.3-70b-versatile'})})
 async function aiChat(c:any,message:string,includePrivate=false){const provider=createAIProvider(c.env);if(!provider)return c.json({error:'AI provider is not configured'},503);const pkg=await contextFor(c,message,true,includePrivate);try{const answer=await provider.chat([{role:'system',content:`You are connected to Memory.Nrul. Treat memory as context, not unquestionable truth. Current user input overrides stale memory. Never claim access to excluded data.\n\n${formatSystemContext(pkg)}`},{role:'user',content:message}]);return c.json({ok:true,provider:provider.name,model:provider.model,answer,contextItems:pkg.context.length,contextVersion:pkg.version,privacy:{filterApplied:true,privateIncluded:pkg.privacy.privateIncluded,restrictedBlocked:true}})}catch{return c.json({error:'AI provider request failed'},502)}}
 app.post('/api/ai/chat',async c=>{const denied=requireAuth(c);if(denied)return denied;const b=await json(c),message=typeof b?.message==='string'?b.message.trim().slice(0,20000):'';if(!message)return c.json({error:'Message is required'},400);return aiChat(c,message,bool(b.includePrivate))})
 
-app.get('/api/voice/status',c=>{const p=createAIProvider(c.env);return c.json({ok:true,voice:'browser',configured:!!p,provider:p?.name||'groq',stt:'browser-speech-recognition',tts:'browser-speech-synthesis',phoneCallReady:false})})
+app.get('/api/voice/status',c=>{const p=createAIProvider(c.env);return c.json({ok:true,voice:'browser',configured:!!p,provider:p?.name||'groq',stt:'browser-speech-recognition',tts:'browser-speech-synthesis',phoneCallReady:false,realtimeProvider:c.env.VOICE_REALTIME_PROVIDER||'cloudflare-voice',realtimeConfigured:c.env.VOICE_REALTIME_ENABLED==='true'})})
 app.post('/api/voice/chat',async c=>{const denied=requireAuth(c);if(denied)return denied;const b=await json(c),message=typeof b?.message==='string'?b.message.trim().slice(0,20000):'';if(!message)return c.json({error:'Message is required'},400);const response=await aiChat(c,message,bool(b.includePrivate));if(response.status!==200)return response;const data=await response.json();return c.json({...data,voice:{input:'transcript',output:'text'}})})
+app.post('/api/voice/realtime/session',async c=>{const denied=requireAuth(c);if(denied)return denied;const b=await json(c)||{};const provider=typeof b.provider==='string'?b.provider:c.env.VOICE_REALTIME_PROVIDER||'cloudflare-voice';const allowed=['cloudflare-voice','xai-grok-voice','custom'].includes(provider)?provider:'cloudflare-voice';const ttl=Math.max(60,Math.min(Number(c.env.VOICE_REALTIME_SESSION_TTL||300),900));return c.json(createRealtimeVoiceSession({provider:allowed as 'cloudflare-voice'|'xai-grok-voice'|'custom',enabled:c.env.VOICE_REALTIME_ENABLED==='true',sessionTtlSeconds:ttl}))})
 
 app.get('*',async c=>{const url=new URL(c.req.url),path=url.pathname==='/'?'/index.html':url.pathname;return c.env.ASSETS?c.env.ASSETS.fetch(new Request(new URL(path,url),c.req.raw)):c.notFound()})
 export default app
