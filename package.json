@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "wrangler pages dev public --compatibility-date=2026-09-01",
     "build": "tsc --noEmit",
+    "test": "vitest run",
+    "test:ai": "vitest run tests/ai-flow.test.ts",
     "deploy": "wrangler pages deploy public"
   },
   "dependencies": {
@@ -14,6 +16,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260901.0",
     "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
     "wrangler": "^4.34.0"
   }
 }
