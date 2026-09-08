@@ -26,24 +26,34 @@ export const onRequest: PagesFunction = async ({ request, env }) => {
   const message = String(body.message || body.query || '').trim()
   if (!message) return Response.json({ error: 'Message is required' }, { status: 400 })
 
+  const authHeaders = {
+    'Content-Type': 'application/json',
+    Cookie: request.headers.get('Cookie') || '',
+    Authorization: request.headers.get('Authorization') || '',
+  }
   const contextRequest = new Request(new URL('/api/context/package', request.url), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Cookie: request.headers.get('Cookie') || '',
-      Authorization: request.headers.get('Authorization') || '',
-    },
-    body: JSON.stringify({ query: message }),
+    method: 'POST', headers: authHeaders, body: JSON.stringify({ query: message }),
   })
   const contextResponse = await app.fetch(contextRequest, env)
   if (!contextResponse.ok) return Response.json({ error: 'Context package failed' }, { status: 502 })
   const context = await contextResponse.json<any>()
 
+  const retrieveRequest = new Request(new URL(`/api/retrieve?q=${encodeURIComponent(message)}&limit=20`, request.url), {
+    headers: { Cookie: authHeaders.Cookie, Authorization: authHeaders.Authorization },
+  })
+  const retrieveResponse = await app.fetch(retrieveRequest, env)
+  const retrieved = retrieveResponse.ok ? await retrieveResponse.json<any>() : { results: [] }
   const safeContext = {
     ...context,
-    context: Array.isArray(context.context)
-      ? context.context.filter((item: any) => item.privacy !== 'RESTRICTED')
-      : [],
+    context: (Array.isArray(retrieved.results) ? retrieved.results : [])
+      .filter((item: any) => item.privacy !== 'RESTRICTED')
+      .map((item: any) => ({
+        id: item.id, type: item.memoryType, domain: item.domain, title: item.title,
+        summary: item.summary, content: item.content, privacy: item.privacy,
+        tags: item.tags, entities: item.entities, metadata: item.metadata,
+        confidence: item.confidence, updatedAt: item.updatedAt, lastVerified: item.lastVerified,
+        validFrom: item.validFrom, validUntil: item.validUntil, supersedesId: item.supersedesId,
+      })),
   }
 
   const system = `You are an AI connected to Memory.Nrul, a context continuity engine. Use supplied memory as context, not absolute truth. Prefer verified and recent information. If memory conflicts with the user's current message, the current message wins. Continue naturally from the latest checkpoint when relevant. Never reveal restricted memory.\n\nMEMORY CONTEXT:\n${JSON.stringify(safeContext)}`
