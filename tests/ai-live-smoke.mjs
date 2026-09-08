@@ -1,4 +1,4 @@
-const baseUrl = (process.env.MEMORY_N RUL_BASE_URL || process.env.MEMORY_BASE_URL || '').replace(/\/$/, '')
+const baseUrl = (process.env.MEMORY_BASE_URL || '').replace(/\/$/, '')
 const adminKey = process.env.MEMORY_ADMIN_KEY || ''
 
 if (!baseUrl) throw new Error('MEMORY_BASE_URL is required')
