@@ -1,13 +1,46 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "memory-nrul",
-  "compatibility_date": "2026-09-01",
-  "pages_build_output_dir": "public",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "ai": {
+    "binding": "AI"
+  },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/agents/*"]
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "memory-nrul-db",
       "database_id": "acae1559-cc73-4815-a0cc-32483f8cb24d"
     }
-  ]
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MemoryVoiceAgent",
+        "class_name": "MemoryVoiceAgent"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MemoryVoiceAgent"]
+    }
+  ],
+  "vars": {
+    "VOICE_REALTIME_ENABLED": "true",
+    "VOICE_REALTIME_PROVIDER": "cloudflare-voice",
+    "VOICE_REALTIME_SESSION_TTL": "300",
+    "MEMORY_API_BASE_URL": "https://memory-nrul.pages.dev"
+  },
+  "secrets": {
+    "required": ["GROQ_API_KEY", "MEMORY_ADMIN_KEY"]
+  }
 }
