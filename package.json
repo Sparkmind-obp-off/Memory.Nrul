@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler pages dev public --compatibility-date=2026-09-01 --d1=memory-nrul-db --local --ip 0.0.0.0 --port 3000",
+    "dev:voice": "wrangler dev --config wrangler.jsonc --ip 0.0.0.0 --port 8788",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -12,10 +13,13 @@
     "test:voice": "vitest run tests/voice-flow.test.ts",
     "test:ai:live": "node tests/ai-live-smoke.mjs",
     "deploy": "npm run typecheck && wrangler pages deploy public",
+    "deploy:voice": "npm run typecheck && wrangler deploy --config wrangler.jsonc",
     "db:migrate:local": "wrangler d1 migrations apply memory-nrul-db --local",
     "db:migrate:prod": "wrangler d1 migrations apply memory-nrul-db --remote"
   },
   "dependencies": {
+    "@cloudflare/voice": "0.4.0",
+    "agents": "0.22.0",
     "hono": "^4.9.7"
   },
   "devDependencies": {
