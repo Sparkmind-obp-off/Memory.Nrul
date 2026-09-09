@@ -1,2 +1,3 @@
-const nav=document.querySelector('nav'), app=document.querySelector('#app'), title=document.querySelector('#title'), subtitle=document.querySelector('#subtitle')
-if(nav&&app){const b=document.createElement('button');b.className='nav';b.dataset.view='chat';b.textContent='AI Chat';nav.insertBefore(b,nav.children[1]);b.onclick=async()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x===b));title.textContent='AI Chat';subtitle.textContent='Memory context → external AI provider.';app.innerHTML='<div id="ai-chat"></div>';await import('/ai-chat.js')}}
+const nav=document.querySelector('nav'),app=document.querySelector('#app')
+const chatNav=nav?.querySelector('[data-view="chat"]')
+if(nav&&app&&chatNav){chatNav.onclick=async()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x===chatNav));app.innerHTML='<div id="ai-chat"></div>';await import('/ai-chat.js')}}
