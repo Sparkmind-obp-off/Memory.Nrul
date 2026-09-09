@@ -64,3 +64,5 @@ jobs:
       - name: Remove Worker secrets file
         if: always()
         run: rm -f .worker-secrets
+
+# Deployment trigger: run against the latest tested main revision.
