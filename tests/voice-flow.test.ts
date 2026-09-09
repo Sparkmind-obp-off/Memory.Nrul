@@ -39,7 +39,8 @@ describe('Voice → Memory → AI',()=>{
     const response=await app.fetch(new Request('https://memory.test/api/voice/realtime/session',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders},body:JSON.stringify({provider:'cloudflare-voice'})}),env)
     const data=await response.json() as any
     expect(response.status).toBe(200)
-    expect(data.version).toBe('1.0')
+    expect(data.version).toBe('1.1')
+    expect(data.agent).toBe('MemoryVoiceAgent')
     expect(data.provider).toBe('cloudflare-voice')
     expect(data.transport).toBe('websocket')
     expect(data.status).toBe('ready')
