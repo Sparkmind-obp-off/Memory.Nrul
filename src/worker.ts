@@ -1,5 +1,4 @@
-import { routeAgentRequest } from 'agents'
-import { Agent } from 'agents'
+import { routeAgentRequest, Agent } from 'agents'
 import { withVoice, WorkersAIFluxSTT, WorkersAITTS, type VoiceTurnContext } from '@cloudflare/voice'
 import app from './index'
 import type { Bindings } from './types'
@@ -12,6 +11,7 @@ import { createAIProvider } from './ai'
 interface Env extends Bindings {
   AI: Ai
   ASSETS: Fetcher
+  MemoryVoiceAgent: DurableObjectNamespace<MemoryVoiceAgent>
 }
 
 const VoiceAgent = withVoice(Agent)
