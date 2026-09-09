@@ -10,9 +10,10 @@ export type RealtimeVoiceCapabilities = {
 }
 
 export type RealtimeVoiceSession = {
-  version: '1.0'
+  version: '1.1'
   provider: RealtimeVoiceProvider
   transport: 'websocket'
+  agent: 'MemoryVoiceAgent'
   status: 'ready' | 'not-configured'
   sessionId: string
   expiresInSeconds: number
@@ -44,9 +45,10 @@ export function createRealtimeVoiceSession(config: RealtimeVoiceConfig = {}): Re
   const provider = config.provider || 'cloudflare-voice'
   const enabled = config.enabled === true
   return {
-    version: '1.0',
+    version: '1.1',
     provider,
     transport: 'websocket',
+    agent: 'MemoryVoiceAgent',
     status: enabled ? 'ready' : 'not-configured',
     sessionId: crypto.randomUUID(),
     expiresInSeconds: config.sessionTtlSeconds || 300,
