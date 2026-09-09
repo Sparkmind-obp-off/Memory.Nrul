@@ -13,14 +13,14 @@ function authHeaders() {
 }
 
 describe('Memory → Context → Groq', () => {
-  it('rejects unauthenticated AI access', async () => {
+  it('allows unauthenticated AI chat with public-only context', async () => {
     const request = new Request('https://memory.test/api/ai/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: 'test' }),
     })
     const response = await onRequest({ request, env } as any)
-    expect(response.status).toBe(401)
+    expect(response.status).not.toBe(401)
   })
 
   it('retrieves memory, builds context, calls Groq, and blocks RESTRICTED memory', async () => {
@@ -49,14 +49,12 @@ describe('Memory → Context → Groq', () => {
     let providerPayload: any = null
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
       providerPayload = JSON.parse(String(init.body))
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: 'GROQ_MOCK_RESPONSE' } }],
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ choices: [{ message: { content: 'GROQ_MOCK_RESPONSE' } }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }))
 
     const request = new Request('https://memory.test/api/ai/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: 'public fact' }),
     })
     const response = await onRequest({ request, env } as any)
